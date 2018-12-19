@@ -1,11 +1,11 @@
 /**
  * @author chenjiajian
  * @property {Array} range mode为 selector 或 multiSelector 时，range 有效
- * @property {String} range-key 当 range 是一个 Object Array 时，通过 range-key 来指定 Object 中 key 的值作为选择器显示内容
+ * @property {String} rangeKey 当 range 是一个 Object Array 时，通过 rangeKey 来指定 Object 中 key 的值作为选择器显示内容
  * @property {Number} value value 的值表示选择了 range 中的第几个（下标从 0 开始）
- * @property {EventHandle} bindchange value 改变时触发 change 事件，event.detail = {value: value}
+ * @property {EventHandle} onChange value 改变时触发 change 事件，event.detail = {value: value}
  * @property {Boolean} disabled 是否禁用
- * @property {EventHandle} bindcancel 取消选择或点遮罩层收起 picker 时触发
+ * @property {EventHandle} onCancel 取消选择或点遮罩层收起 picker 时触发
  */
 import Nerv from 'nervjs'
 import PickerGroup from './picker-group'
@@ -23,16 +23,29 @@ export default class Picker extends Nerv.Component {
   constructor (props) {
     super(props)
 
+    this.handlePrpos()
+    this.state = {
+      pickerValue: this.index,
+      hidden: true,
+      fadeOut: false,
+      height: []
+    }
+  }
+
+  handlePrpos () {
     let { value, range, mode } = this.props
     this.index = []
 
     if (mode === 'multiSelector') {
+      if (!range) {
+        range = []
+        this.props.range = []
+      }
       range.forEach((r, i) => {
         const v = value && value.length ? value[i] : undefined
         this.index.push(this.verifyValue(v, r) ? Math.floor(value[i]) : 0)
       })
-    }
-    if (mode === 'time') {
+    } else if (mode === 'time') {
       // check value...
       if (!this.verifyTime(value)) {
         console.warn('time picker value illegal')
@@ -75,29 +88,24 @@ export default class Picker extends Nerv.Component {
             _value.getDate()
           ]
         }
-        this.setState({
-          dateMaxDay: this.getDateRange(1, maxDay, '日')
-        })
+
+        this._dateMaxDay = this.getDateRange(1, maxDay, '日')
       } else {
         throw new Error('Date Interval Error')
       }
 
       // this.index = dateHandle.
     } else {
+      if (!range) {
+        range = []
+        this.props.range = []
+      }
       this.index.push(this.verifyValue(value, range) ? Math.floor(value) : 0)
-    }
-
-    this.state = {
-      pickerValue: this.index,
-      hidden: true,
-      fadeOut: false,
-      height: []
     }
   }
 
-  shouldComponentUpdate (nextProps, nextState) {
-    // console.log(nextProps, nextState)
-    // todo...
+  componentDidUpdate () {
+    this.handlePrpos()
   }
 
   // 校验传入的 value 是否合法
@@ -203,7 +211,6 @@ export default class Picker extends Nerv.Component {
 
       // 除了 multiSeclector，都在点击确认时才改变记录的下标值
       this.index = this.state.height.map(h => (TOP - h) / LINE_HEIGHT)
-
       const eventObj = getEventObj(e, 'change', {
         value: this.index.length > 1 ? this.index : this.index[0]
       })
@@ -248,19 +255,21 @@ export default class Picker extends Nerv.Component {
         } else {
           eventObj.detail.value = this.index
         }
+        eventObj.detail.value = eventObj.detail.value.join('-')
       }
-
       this.setState({
         pickerValue: eventObj.detail.value
       })
-      this.props.bindchange && this.props.bindchange(eventObj)
+
+      let reEventObj = Object.assign({}, eventObj)
+      this.props.onChange && this.props.onChange(reEventObj)
     }
 
     // 点击取消或蒙层
     const onCancel = e => {
       this.hidePicker()
       const eventObj = getEventObj(e, 'cancel', {})
-      this.props.bindcancel && this.props.bindcancel(eventObj)
+      this.props.onCancel && this.props.onCancel(eventObj)
     }
 
     // 列改变
@@ -297,7 +306,7 @@ export default class Picker extends Nerv.Component {
         column: columnId,
         value: index[columnId]
       })
-      this.props.bindcolumnchange && this.props.bindcolumnchange(eventObj)
+      this.props.onColumnchange && this.props.onColumnchange(eventObj)
     }
 
     // 统一抛出的事件对象，和小程序对齐
@@ -377,7 +386,7 @@ export default class Picker extends Nerv.Component {
       return (
         <PickerGroup
           range={this.props.range}
-          rangeKey={this.props['range-key']}
+          rangeKey={this.props['rangeKey']}
           height={this.state.height[0]}
           updateHeight={updateHeight}
           columnId='0'
@@ -391,7 +400,7 @@ export default class Picker extends Nerv.Component {
         return (
           <PickerGroup
             range={range}
-            rangeKey={this.props['range-key']}
+            rangeKey={this.props['rangeKey']}
             height={this.state.height[index]}
             updateHeight={updateHeight}
             onColumnChange={onColumnChange}
@@ -468,9 +477,8 @@ export default class Picker extends Nerv.Component {
       if (max < this.pickerDate._updateValue[2]) {
         this.state.height[2] = TOP - LINE_HEIGHT * max + 34
       }
-      this.setState({
-        dateMaxDay: this.getDateRange(1, max, '日')
-      })
+
+      this._dateMaxDay = this.getDateRange(1, max, '日')
     }
 
     const gitDateSelector = () => {
@@ -532,7 +540,7 @@ export default class Picker extends Nerv.Component {
           />,
           <PickerGroup
             mode='date'
-            range={this.state.dateMaxDay}
+            range={this._dateMaxDay}
             updateDay={updateDay}
             height={this.state.height[2]}
             updateHeight={updateHeight}
@@ -554,12 +562,12 @@ export default class Picker extends Nerv.Component {
     })
     const shouldDivHidden = this.state.hidden ? 'display: none;' : ''
 
-    // 给 children 绑定事件
-    const children = Nerv.Children.map(this.props.children, child => {
-      return Nerv.cloneElement(child, {
-        onClick: showPicker
-      })
-    })
+    // // 给 children 绑定事件
+    // const children = Nerv.Children.map(this.props.children, child => {
+    //   return Nerv.cloneElement(child, {
+    //     onClick: showPicker
+    //   })
+    // })
 
     // picker__group
     let pickerGroup
@@ -581,7 +589,9 @@ export default class Picker extends Nerv.Component {
 
     return (
       <div className={this.props.className}>
-        {children}
+        <div onClick={showPicker}>
+          {this.props.children}
+        </div>
         <div style={shouldDivHidden} className={clsMask} onClick={onCancel} />
         <div style={shouldDivHidden} className={clsSlider}>
           <div className='weui-picker__hd'>

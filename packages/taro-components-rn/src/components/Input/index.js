@@ -68,6 +68,7 @@ type Props = {
   onInput?: Function,
   onFocus?: Function,
   onBlur?: Function,
+  onKeyDown?: Function,
   onConfirm?: Function,
   // Private
   _multiline?: boolean,
@@ -75,7 +76,7 @@ type Props = {
   _onLineChange?: Function,
 }
 type State = {
-  value: string,
+  returnValue: ?string,
   height: number,
 }
 
@@ -87,9 +88,10 @@ class _Input extends React.Component<Props, State> {
 
   props: Props
   state: State = {
-    value: this.props.value || '',
+    returnValue: undefined,
     height: 0,
   }
+  tmpValue: ?string
   lineCount: number = 0
 
   static defaultProps = {
@@ -102,27 +104,76 @@ class _Input extends React.Component<Props, State> {
 
   onChangeText = (text: string) => {
     const { onInput } = this.props
+    const { returnValue } = this.state
+    this.tmpValue = text || ''
     if (onInput) {
-      const result = onInput({ detail: { value: text } })
-      this.setState({ value: typeof result === 'string' ? result : text })
+      const result = onInput({
+        target: { value: text },
+        detail: { value: text }
+      })
+      // Be care of flickering
+      // @see https://facebook.github.io/react-native/docs/textinput.html#value
+      if (typeof result === 'string') {
+        this.setState({ returnValue: result })
+      } else if (returnValue) {
+        this.setState({ returnValue: undefined })
+      }
     }
   }
 
   onFocus = () => {
     const { onFocus } = this.props
     // event.detail = { value, height }
-    onFocus && onFocus({ detail: { value: this.state.value } })
+    onFocus && onFocus({
+      target: { value: this.tmpValue || '' },
+      detail: { value: this.tmpValue || '' }
+    })
   }
 
   onBlur = () => {
     const { onBlur } = this.props
-    onBlur && onBlur({ detail: { value: this.state.value } })
+    onBlur && onBlur({
+      target: { value: this.tmpValue || '' },
+      detail: { value: this.tmpValue || '' }
+    })
   }
 
+  /**
+   * Callback that is called when a key is pressed.
+   * This will be called with `{ nativeEvent: { key: keyValue } }`
+   * where `keyValue` is `'Enter'` or `'Backspace'` for respective keys and
+   * the typed-in character otherwise including `' '` for space.
+   * Fires before `onChange` callbacks.
+   */
   onKeyPress = (event: Object) => {
-    if (event.nativeEvent.key !== 'Enter') return
-    const { onConfirm } = this.props
-    onConfirm && onConfirm({ detail: { value: this.state.value } })
+    const { onKeyDown, onConfirm } = this.props
+    const keyValue = event.nativeEvent.key
+    let which
+    keyValue === 'Enter' && (which = 13)
+    keyValue === 'Backspace' && (which = 8)
+    onKeyDown && onKeyDown({
+      which,
+      target: { value: this.tmpValue || '' },
+      detail: { value: this.tmpValue || '' }
+    })
+    if (keyValue !== 'Enter') return
+    onConfirm && onConfirm({
+      target: { value: this.tmpValue || '' },
+      detail: { value: this.tmpValue || '' }
+    })
+  }
+
+  onSubmitEditing = () => {
+    const { onKeyDown, onConfirm } = this.props
+    onKeyDown && onKeyDown({
+      which: 13,
+      target: { value: this.tmpValue || '' },
+      detail: { value: this.tmpValue || '' }
+    })
+    onConfirm && onConfirm({
+      target: { value: this.tmpValue || '' },
+      detail: { value: this.tmpValue || '' }
+    })
   }
 
   onContentSizeChange = (event: Object) => {
@@ -134,6 +185,13 @@ class _Input extends React.Component<Props, State> {
       this.lineCount += height > this.state.height ? 1 : -1
       _onLineChange && _onLineChange({ detail: { height, lineCount: this.lineCount } })
       this.setState({ height })
+    }
+  }
+
+  // eslint-disable-next-line camelcase
+  UNSAFE_componentWillReceiveProps (nextProps: Props) {
+    if (this.state.value !== nextProps.value) {
+      this.setState({ returnValue: nextProps.value })
     }
   }
 
@@ -179,12 +237,14 @@ class _Input extends React.Component<Props, State> {
         autoFocus={!!focus}
         selection={selection}
         onChangeText={this.onChangeText}
-        value={this.state.value}
+        value={this.state.returnValue}
         onFocus={this.onFocus}
         onBlur={this.onBlur}
         onKeyPress={this.onKeyPress}
+        onSubmitEditing={this.onSubmitEditing}
         multiline={!!_multiline}
         onContentSizeChange={this.onContentSizeChange}
+        underlineColorAndroid="rgba(0,0,0,0)"
         style={[style, _multiline && { height: Math.max(35, this.state.height) }]}
       />
     )

@@ -24,7 +24,7 @@ type Props = {
   value: *,
   disabled?: boolean,
   checked?: boolean,
-  color: string | number,
+  color: string,
   onChange?: Function,
 }
 type State = {
@@ -38,14 +38,18 @@ class _Checkbox extends React.Component<Props, State> {
   }
 
   props: Props
+  state: State = {
+    checked: !!this.props.checked
+  }
+  $touchable: React.ElementRef<TouchableWithoutFeedback>
 
   static defaultProps = {
     value: '',
     color: '#09BB07',
   }
 
-  state: State = {
-    checked: !!this.props.checked
+  _simulateNativePress = () => {
+    this.$touchable.touchableHandlePress()
   }
 
   onPress = () => {
@@ -61,6 +65,13 @@ class _Checkbox extends React.Component<Props, State> {
     this.setState({ checked: !this.state.checked })
   }
 
+  // eslint-disable-next-line camelcase
+  UNSAFE_componentWillReceiveProps (nextProps: Props) {
+    if (this.state.checked !== nextProps.checked) {
+      this.setState({ checked: !!nextProps.checked })
+    }
+  }
+
   render () {
     const {
       style,
@@ -68,7 +79,10 @@ class _Checkbox extends React.Component<Props, State> {
     } = this.props
 
     return (
-      <TouchableWithoutFeedback onPress={this.onPress}>
+      <TouchableWithoutFeedback
+        onPress={this.onPress}
+        ref={(touchable) => { this.$touchable = touchable }}
+      >
         <View style={[styles.wrapper, style, this.state.checked && styles.wrapperChecked]}>
           <Icon
             type="success_no_circle"

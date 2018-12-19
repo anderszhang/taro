@@ -18,9 +18,9 @@
 
 #### 上传、下载
 
-☑️ wx.uploadFile
+☑️ wx.uploadFile (依赖 chooseImage)
 
-☑️ wx.downloadFile
+😐 wx.downloadFile
 
 #### WebSocket
 
@@ -46,7 +46,7 @@
 
 😐 wx.chooseImage (IOS有官方API支持，但该API过于简单，表现与想象不同，且在真机上会闪退)
 
-☑️ wx.previewImage
+✅ wx.previewImage
 
 ✅ wx.getImageInfo (仅能返回宽高)
 
@@ -66,11 +66,9 @@
 
 #### 音频播放控制
 
-☑️ wx.playVoice
-
-☑️ wx.pauseVoice
-
-☑️ wx.stopVoice
+😐 wx.playVoice
+😐 wx.pauseVoice
+😐 wx.stopVoice
 
 #### 音乐播放控制
 
@@ -98,9 +96,9 @@
 
 #### 音频组件控制
 
-☑️ wx.createAudioContext
+😐 wx.createAudioContext
 
-☑️ wx.createInnerAudioContext
+😐 wx.createInnerAudioContext
         
 
 #### 视频
@@ -112,7 +110,7 @@
 
 #### 视频组件控制
 
-☑️ wx.createVideoContext
+😐 wx.createVideoContext
         
 
 #### 相机组件控制
@@ -167,7 +165,7 @@
 
 #### 获取位置
 
-☑️ wx.getLocation
+✅ wx.getLocation
 
 ❌ wx.chooseLocation
 
@@ -331,27 +329,27 @@
 
 #### 交互反馈
 
-☑️ wx.showToast
+✅️ wx.showToast
 
-☑️ wx.showLoading
+✅ wx.showLoading
 
-☑️ wx.hideToast
+✅ wx.hideToast
 
-☑️ wx.hideLoading
+✅ wx.hideLoading
 
-☑️ wx.showModal
+✅ wx.showModal
 
-☑️ wx.showActionSheet
+✅ wx.showActionSheet
 
 #### 设置导航条
 
-❌ wx.setNavigationBarTitle
+✅ wx.setNavigationBarTitle
 
-❌ wx.showNavigationBarLoading
+✅ wx.showNavigationBarLoading
 
-❌ wx.hideNavigationBarLoading
+✅ wx.hideNavigationBarLoading
 
-❌ wx.setNavigationBarColor
+✅ wx.setNavigationBarColor
 
 #### 设置tabBar
 
@@ -381,7 +379,7 @@
 
 ✅ wx.redirectTo
 
-🤔 wx.switchTab
+✅ wx.switchTab
 
 ✅ wx.navigateBack
 
@@ -389,11 +387,11 @@
 
 #### 动画
 
-☑️ wx.createAnimation
+🤔 wx.createAnimation
 
 #### 位置
 
-☑️ wx.pageScrollTo
+🤔️ wx.pageScrollTo (ScrollView（滚动视图）的组件支持 scrollTo 方法，具体看代码转换后页面的处理情况)
 
 #### 绘图
 
@@ -515,11 +513,11 @@
 
 #### 下拉刷新
 
-🤔 Page.onPullDownRefresh
+✅ Page.onPullDownRefresh
 
-🤔 wx.startPullDownRefresh
+✅ wx.startPullDownRefresh
 
-🤔 wx.stopPullDownRefresh
+✅ wx.stopPullDownRefresh
 
 #### WXML节点信息
 
@@ -631,7 +629,7 @@
 
 #### 打开APP
 
-☑️ launchApp
+❌️ launchApp
 
 #### 获取发票抬头
 

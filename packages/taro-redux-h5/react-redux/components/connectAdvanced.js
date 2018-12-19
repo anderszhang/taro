@@ -1,11 +1,21 @@
 import hoistStatics from 'hoist-non-react-statics'
 import invariant from 'invariant'
-/* eslint-disable import/no-unresolved */
-import { Component, createElement } from 'react'
-/* eslint-enable import/no-unresolved */
-
+import { Component, createElement } from '../../src/compat'
 import Subscription from '../utils/Subscription'
 import { storeShape, subscriptionShape } from '../utils/PropTypes'
+import { tryToCall } from '../utils/tryToCall'
+
+/* eslint-disable react/no-deprecated */
+
+const getRoute = (component) => {
+  const vnode = component.vnode
+
+  if (component.isRoute) return component
+  if (!vnode) return {}
+  if (vnode._owner) return getRoute(vnode._owner)
+
+  return component
+}
 
 let hotReloadingVersion = 0
 const dummyState = {}
@@ -13,11 +23,21 @@ function noop() {}
 function makeSelectorStateful(sourceSelector, store) {
   // wrap the selector in an object that tracks its results between runs.
   const selector = {
-    run: function runComponentSelector(props) {
+    run: function runComponentSelector(props, { ctx }) {
       try {
         const nextProps = sourceSelector(store.getState(), props)
         if (nextProps !== selector.props || selector.error) {
           selector.shouldComponentUpdate = true
+
+          /**
+           * 如果是页面 根据目前&未来展示状态判断是否需要update
+           * 通过 selector.shouldComponentUpdate = false 阻止更新
+           */
+
+          const route = getRoute(ctx)
+          if (!route.matched) {
+            selector.shouldComponentUpdate = false
+          }
           selector.props = nextProps
           selector.error = null
         }
@@ -134,6 +154,10 @@ export default function connectAdvanced(
         this.initSubscription()
       }
 
+      get config () {
+        return this.wrappedInstance ? this.wrappedInstance.config : {}
+      }
+
       getChildContext() {
         // If this component received store from props, its subscription should be transparent
         // to any descendants receiving store+subscription from context; it passes along
@@ -153,24 +177,20 @@ export default function connectAdvanced(
         // dispatching an action in its componentWillMount, we have to re-run the select and maybe
         // re-render.
         this.subscription.trySubscribe()
-        this.selector.run(this.props)
+        this.selector.run(this.props, { ctx: this })
         if (this.selector.shouldComponentUpdate) this.forceUpdate()
       }
 
-      componentDidShow() {
-        this.wrappedInstance.componentDidShow && this.wrappedInstance.componentDidShow()
+      componentDidShow () {
+        tryToCall(this.wrappedInstance.componentDidShow, this.wrappedInstance)
       }
 
       componentWillReceiveProps(nextProps) {
-        this.selector.run(nextProps)
+        this.selector.run(nextProps, { ctx: this })
       }
 
       shouldComponentUpdate() {
         return this.selector.shouldComponentUpdate
-      }
-      
-      componentDidHide() {
-        this.wrappedInstance.componentDidHide && this.wrappedInstance.componentDidHide()
       }
 
       componentWillUnmount() {
@@ -182,6 +202,10 @@ export default function connectAdvanced(
         this.selector.shouldComponentUpdate = false
       }
 
+      componentDidHide() {
+        tryToCall(this.wrappedInstance.componentDidHide, this.wrappedInstance)
+      }
+
       getWrappedInstance() {
         invariant(withRef,
           `To access the wrapped instance, you need to specify ` +
@@ -191,13 +215,14 @@ export default function connectAdvanced(
       }
 
       setWrappedInstance = (ref) => {
+        if (ref === null) return
         this.wrappedInstance = ref
       }
 
       initSelector() {
         const sourceSelector = selectorFactory(this.store.dispatch, selectorFactoryOptions)
         this.selector = makeSelectorStateful(sourceSelector, this.store)
-        this.selector.run(this.props)
+        this.selector.run(this.props, { ctx: this })
       }
 
       initSubscription() {
@@ -218,7 +243,7 @@ export default function connectAdvanced(
       }
 
       onStateChange() {
-        this.selector.run(this.props)
+        this.selector.run(this.props, { ctx: this })
 
         if (!this.selector.shouldComponentUpdate) {
           this.notifyNestedSubs()
@@ -243,10 +268,7 @@ export default function connectAdvanced(
       }
 
       addExtraProps(props) {
-        if (!withRef && !renderCountProp && !(this.propsMode && this.subscription)) return {
-          ...props,
-          ref: this.setWrappedInstance
-        }
+        // if (!withRef && !renderCountProp && !(this.propsMode && this.subscription)) return props
         // make a shallow copy so that fields added don't leak to the original selector.
         // this is especially important for 'ref' since that's a reference back to the component
         // instance. a singleton memoized selector would then be holding a reference to the

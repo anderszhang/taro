@@ -11,22 +11,28 @@ import {
   Text,
   StyleSheet,
 } from 'react-native'
+import utils from '../../utils'
 
 type Props = {
   style?: StyleSheet.Styles,
   children?: any,
   selectable?: boolean,
+  onClick?: Function,
 }
 
-export default function ({
+export default function _Text ({
   style,
   children,
   selectable,
+  onClick,
+  ...otherProps
 }: Props) {
   return (
     <Text
       selectable={!!selectable}
       style={style}
+      onPress={onClick}
+      {...otherProps}
     >
       {children}
     </Text>

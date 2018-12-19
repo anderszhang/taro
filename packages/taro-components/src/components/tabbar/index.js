@@ -1,6 +1,13 @@
+import Taro from '@tarojs/taro-h5'
 import Nerv from 'nervjs'
 import classNames from 'classnames'
+
+import TabbarItem from './tabbarItem'
 import './style'
+
+const removeLeadingSlash = str => str.replace(/^\.?\//, '')
+const removeTrailingSearch = str => str.replace(/\?[\s\S]*$/, '')
+
 class Tabbar extends Nerv.Component {
   constructor (props) {
     super(...arguments)
@@ -12,10 +19,12 @@ class Tabbar extends Nerv.Component {
     ) {
       throw new Error('tabBar 配置错误')
     }
-    list[0].selected = true
+
+    this.homePage = removeLeadingSlash(props.homePage)
+
     this.state = {
       list,
-      isShow: true,
+      isShow: false,
       selectedIndex: 0
     }
   }
@@ -28,21 +37,37 @@ class Tabbar extends Nerv.Component {
     this.removeEvent()
   }
 
-  hashChangeHandler () {
-    const hash = location.hash
-    if (!hash) return
-    const len = this.state.list.length
-    for (let i = 0; i < len; i++) {
-      if (this.state.list[i].pagePath.indexOf(hash.replace(/^#\//, '')) > -1) {
-        return this.setState({
-          isShow: true,
-          selectedIndex: i
-        })
-      }
+  getCurrentPathname () {
+    let pathname
+    if (this.props.mode === 'hash') {
+      pathname = location.hash.replace('#', '')
+    } else {
+      pathname = location.pathname.replace(new RegExp(`^${this.props.publicPath}/?`), '')
     }
-    this.setState({
-      isShow: false
+
+    return removeLeadingSlash(removeTrailingSearch(pathname))
+  }
+
+  hashChangeHandler ({ toLocation } = {}) {
+    let currentPage
+
+    if (toLocation) {
+      currentPage = toLocation.pathname ? removeLeadingSlash(toLocation.pathname) : this.homePage
+    } else {
+      currentPage = this.getCurrentPathname() || this.homePage
+    }
+
+    const stateObj = { isShow: false }
+    const foundIdx = this.state.list.findIndex(v => {
+      return v.pagePath.indexOf(currentPage) > -1
     })
+    if (foundIdx > -1) {
+      Object.assign(stateObj, {
+        isShow: true,
+        selectedIndex: foundIdx
+      })
+    }
+    this.setState(stateObj)
   }
 
   hideBar () {
@@ -58,23 +83,23 @@ class Tabbar extends Nerv.Component {
   }
 
   bindEvent () {
-    window.addEventListener('hashchange', this.hashChangeHandler.bind(this))
+    const handler = this.hashChangeHandler.bind(this)
+    Taro['eventCenter'].on('routerChange', handler)
+    this.removeEvent = () => {
+      Taro['eventCenter'].off('routerChange', handler)
+    }
   }
 
-  removeEvent () {
-    window.removeEventListener('hashchange', this.hashChangeHandler.bind(this))
+  handleSelect = (index, e) => {
+    let list = this.state.list
+    Taro.redirectTo && Taro.redirectTo({
+      url: (/^\//.test(list[index].pagePath) ? '' : '/') + list[index].pagePath
+    })
   }
 
   render () {
-    const { conf, router = {} } = this.props
-    function handleSelect (index, e) {
-      let list = this.state.list
-      router.navigateTo &&
-        router.navigateTo({
-          url:
-            (/^\//.test(list[index].pagePath) ? '' : '/') + list[index].pagePath
-        })
-    }
+    const { conf } = this.props
+
     conf.borderStyle = conf.borderStyle || 'black'
     let containerCls = classNames('weui-tabbar', {
       [`taro-tabbar__border-${conf.borderStyle}`]: true
@@ -88,30 +113,24 @@ class Tabbar extends Nerv.Component {
           }}
         >
           {this.state.list.map((item, index) => {
-            const cls = classNames('weui-tabbar__item', {
-              [`weui-bar__item_on`]: this.state.selectedIndex === index
-            })
-            let textStyle = {
-              color: this.state.selectedIndex === index ? conf.selectedColor : conf.color || ''
+            const isSelected = this.state.selectedIndex === index
+            let textColor
+            let iconPath
+            if (isSelected) {
+              textColor = conf.selectedColor
+              iconPath = item.selectedIconPath
+            } else {
+              textColor = conf.color || ''
+              iconPath = item.iconPath
             }
             return (
-              <a
-                key={index}
-                href='javascript:;'
-                className={cls}
-                onClick={handleSelect.bind(this, index)}
-              >
-                <span style='display: inline-block;position: relative;'>
-                  <img
-                    src={this.state.selectedIndex === index ? item.selectedIconPath : item.iconPath}
-                    alt=''
-                    className='weui-tabbar__icon'
-                  />
-                </span>
-                <p className='weui-tabbar__label' style={textStyle}>
-                  {item.text}
-                </p>
-              </a>
+              <TabbarItem
+                index={index}
+                onSelect={this.handleSelect}
+                isSelected={isSelected}
+                textColor={textColor}
+                iconPath={iconPath}
+                text={item.text} />
             )
           })}
         </div>

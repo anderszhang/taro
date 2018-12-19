@@ -20,7 +20,7 @@ type Props = {
 }
 type State = {
   isShowDialog: boolean,
-  date: Date,
+  date: ?Date,
 }
 
 class _PickerDateIOS extends React.Component<Props, State> {
@@ -29,15 +29,16 @@ class _PickerDateIOS extends React.Component<Props, State> {
     super(props)
   }
 
-  getDateValueFromProps = (mode: string, dateOrTime: string) => {
+  getDateValueFromProps = (mode: string, dateOrTime: ?string, isDefaultNow: ?boolean) => {
+    if (!dateOrTime) return isDefaultNow ? new Date() : undefined
     if (mode === 'date') return new Date(dateOrTime)
     const now = new Date()
-    return dateOrTime && new Date(`${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()} ${dateOrTime}`)
+    return new Date(`${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()} ${dateOrTime}`)
   }
 
   state: State = {
     isShowDialog: false,
-    date: this.getDateValueFromProps(this.props.mode, this.props.value),
+    date: this.getDateValueFromProps(this.props.mode, this.props.value, true),
   }
 
   fillZero = (strOrNum: string | number) => {
@@ -58,13 +59,15 @@ class _PickerDateIOS extends React.Component<Props, State> {
     const { mode, onChange } = this.props
     const { date } = this.state
     const value = mode === 'date'
+      // $FlowFixMe date always be Date type
       ? `${date.getFullYear()}-${this.fillZero(date.getMonth() + 1)}-${this.fillZero(date.getDate())}`
+      // $FlowFixMe date always be Date type
       : `${this.fillZero(date.getHours())}:${this.fillZero(date.getMinutes())}`
     onChange && onChange({ detail: { value } })
     this.toggleDialog(false)
   }
 
-  onDateChange = (date) => {
+  onDateChange = (date: Date) => {
     this.setState({ date })
   }
 

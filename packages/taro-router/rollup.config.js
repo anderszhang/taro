@@ -1,37 +1,32 @@
-const { join } = require('path')
-const resolve = require('rollup-plugin-node-resolve')
-const babel = require('rollup-plugin-babel')
-const postcss = require('rollup-plugin-postcss')
+import { pipe, set } from 'lodash/fp'
+import { join } from 'path'
+import babel from 'rollup-plugin-babel'
+import commonjs from 'rollup-plugin-commonjs'
+import resolve from 'rollup-plugin-node-resolve'
+import typescript from 'rollup-plugin-typescript'
 
 const cwd = __dirname
 
+const entries = [{
+  input: 'index.tsx',
+  output: 'index.js'
+}]
+
 const baseConfig = {
-  input: join(cwd, 'src/index.js'),
-  external: ['nervjs'],
-  output: [
-    {
-      file: join(cwd, 'dist/index.js'),
-      format: 'cjs',
-      sourcemap: true,
-      exports: 'named'
-    },
-    {
-      file: join(cwd, 'dist/router.js'),
-      format: 'umd',
-      name: 'Router',
-      sourcemap: true,
-      exports: 'named'
-    }
-  ],
+  external: ['nervjs', '@tarojs/taro-h5'],
+  output: {
+    format: 'cjs',
+    sourcemap: false,
+    exports: 'named'
+  },
   plugins: [
-    postcss({
-      extensions: [ '.css' ]
-    }),
     resolve({
       preferBuiltins: false
     }),
+    typescript(),
     babel({
       babelrc: false,
+      extensions: ['.ts', '.tsx', '.es6', '.es', '.mjs'],
       presets: [
         ['@babel/preset-env', {
           modules: false
@@ -40,30 +35,25 @@ const baseConfig = {
       plugins: [
         '@babel/plugin-proposal-class-properties',
         '@babel/plugin-proposal-object-rest-spread',
+        '@babel/plugin-syntax-dynamic-import',
         ['@babel/plugin-transform-react-jsx', {
           'pragma': 'Nerv.createElement'
         }]
       ]
-    })
-  ]
-}
-const esmConfig = Object.assign({}, baseConfig, {
-  output: Object.assign({}, baseConfig.output, {
-    sourcemap: true,
-    format: 'es',
-    file: join(cwd, 'dist/index.esm.js')
-  })
-})
-
-function rollup () {
-  const target = process.env.TARGET
-
-  if (target === 'umd') {
-    return baseConfig
-  } else if (target === 'esm') {
-    return esmConfig
-  } else {
-    return [baseConfig, esmConfig]
+    }),
+    commonjs()
+  ],
+  watch: {
+    include: 'src/**',
+    clearScreen: true
   }
 }
-module.exports = rollup()
+
+const appendConfigs = ({input, output}) => {
+  return pipe(
+    set('input', join(cwd, `src/${input}`)),
+    set('output.file', join(cwd, `dist/${output}`))
+  )(baseConfig)
+}
+
+export default entries.map(appendConfigs)

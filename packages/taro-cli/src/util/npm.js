@@ -1,5 +1,6 @@
 const resolvePath = require('resolve')
 const spawn = require('cross-spawn')
+const chalk = require('chalk')
 
 const Util = require('./')
 
@@ -16,7 +17,7 @@ const defaultInstallOptions = {
 function resolveNpm (pluginName) {
   if (!npmCached[pluginName]) {
     return new Promise((resolve, reject) => {
-      resolvePath(`${pluginName}`, { basedir }, (err, res) => {
+      resolvePath(`${pluginName}`, {basedir}, (err, res) => {
         if (err) {
           return reject(err)
         }
@@ -31,13 +32,13 @@ function resolveNpm (pluginName) {
 function resolveNpmSync (pluginName) {
   try {
     if (!npmCached[pluginName]) {
-      const res = resolvePath.sync(pluginName, { basedir })
+      const res = resolvePath.sync(pluginName, {basedir})
       return res
     }
     return npmCached[pluginName]
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') {
-      console.log(`缺少npm包${pluginName}，开始安装...`)
+      console.log(chalk.cyan(`缺少npm包${pluginName}，开始安装...`))
       const installOptions = {}
       if (pluginName.indexOf(taroPluginPrefix) >= 0) {
         installOptions.dev = true
@@ -65,17 +66,29 @@ function installNpmPkg (pkgList, options) {
   options = Object.assign({}, defaultInstallOptions, options)
   let installer = ''
   let args = []
-  if (Util.shouldUseCnpm()) {
+
+  if (Util.shouldUseYarn()) {
+    installer = 'yarn'
+  } else if (Util.shouldUseCnpm()) {
     installer = 'cnpm'
   } else {
     installer = 'npm'
   }
-  args = ['install'].concat(pkgList).filter(Boolean)
-  args.push('--silent', '--no-progress')
-  if (options.dev) {
-    args.push('--save-dev')
+
+  if (Util.shouldUseYarn()) {
+    args = ['add'].concat(pkgList).filter(Boolean)
+    args.push('--silent', '--no-progress')
+    if (options.dev) {
+      args.push('-D')
+    }
   } else {
-    args.push('--save')
+    args = ['install'].concat(pkgList).filter(Boolean)
+    args.push('--silent', '--no-progress')
+    if (options.dev) {
+      args.push('--save-dev')
+    } else {
+      args.push('--save')
+    }
   }
   const output = spawn.sync(installer, args, {
     stdio: ['ignore', 'pipe', 'inherit']
@@ -123,10 +136,10 @@ function getNpmPkgSync (npmName) {
 async function getNpmPkg (npmName) {
   let npmPath
   try {
-    npmPath = await resolveNpm(npmName)
+    npmPath = resolveNpmSync(npmName)
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') {
-      console.log(`缺少npm包${npmName}，开始安装...`)
+      console.log(chalk.cyan(`缺少npm包${npmName}，开始安装...`))
       const installOptions = {}
       if (npmName.indexOf(taroPluginPrefix) >= 0) {
         installOptions.dev = true

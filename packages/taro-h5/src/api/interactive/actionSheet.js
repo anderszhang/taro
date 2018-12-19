@@ -1,4 +1,4 @@
-import { inlineStyle } from './utils'
+import { inlineStyle, setTransform } from '../utils'
 
 export default class ActionSheet {
   constructor () {
@@ -13,7 +13,7 @@ export default class ActionSheet {
     }
   }
 
-  getstyle (name) {
+  getStyle () {
     return {
       maskStyle: {
         'position': 'fixed',
@@ -59,7 +59,7 @@ export default class ActionSheet {
 
   create (options = {}) {
     // style
-    const { maskStyle, actionSheetStyle, menuStyle, cellStyle, cancelStyle } = this.getstyle()
+    const { maskStyle, actionSheetStyle, menuStyle, cellStyle, cancelStyle } = this.getStyle()
 
     // configuration
     Object.assign(this.options, options)
@@ -67,6 +67,7 @@ export default class ActionSheet {
 
     // wrapper
     this.el = document.createElement('div')
+    this.el.className = 'taro__actionSheet'
     this.el.style.opacity = '0'
     this.el.style.transition = 'opacity 0.2s linear'
 
@@ -111,6 +112,7 @@ export default class ActionSheet {
       const res = { errMsg: 'showActionSheet:fail cancel' }
       config.fail(res)
       config.complete(res)
+      this.rejectHandler(res)
     }
     mask.onclick = cb
     this.cancel.onclick = cb
@@ -119,8 +121,13 @@ export default class ActionSheet {
     document.body.appendChild(this.el)
     setTimeout(() => {
       this.el.style.opacity = '1'
-      this.actionSheet.style.transform = 'translate(0, 0)'
+      setTransform(this.actionSheet, 'translate(0, 0)')
     }, 0)
+
+    return new Promise((resolve, reject) => {
+      this.resolveHandler = resolve
+      this.rejectHandler = reject
+    })
   }
 
   show (options = {}) {
@@ -132,7 +139,7 @@ export default class ActionSheet {
     Object.assign(config, options)
 
     // cells
-    const { cellStyle } = this.getstyle()
+    const { cellStyle } = this.getStyle()
 
     options.itemList.forEach((item, index) => {
       if (this.cells[index]) {
@@ -168,24 +175,30 @@ export default class ActionSheet {
     this.el.style.display = 'block'
     setTimeout(() => {
       this.el.style.opacity = '1'
-      this.actionSheet.style.transform = 'translate(0, 0)'
+      setTransform(this.actionSheet, 'translate(0, 0)')
     }, 0)
+
+    return new Promise((resolve, reject) => {
+      this.resolveHandler = resolve
+      this.rejectHandler = reject
+    })
   }
 
   onCellClick (e) {
     this.hide()
     const res = {
       errMsg: 'showActionSheet:ok',
-      tapIndex: e.currentTarget.dataset.tapIndex
+      tapIndex: +e.currentTarget.dataset.tapIndex
     }
     this.options.success(res)
     this.options.complete(res)
+    this.resolveHandler(res)
   }
 
   hide () {
     setTimeout(() => {
       this.el.style.opacity = '0'
-      this.actionSheet.style.transform = 'translate(0, 100%)'
+      setTransform(this.actionSheet, 'translate(0, 100%)')
       setTimeout(() => { this.el.style.display = 'none' }, 200)
     }, 0)
   }

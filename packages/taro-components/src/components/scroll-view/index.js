@@ -2,6 +2,7 @@ import Nerv from 'nervjs'
 import omit from 'omit.js'
 import classNames from 'classnames'
 import './style/index.scss'
+
 function easeOutScroll (from, to, callback) {
   if (from === to || typeof from !== 'number') {
     return
@@ -12,13 +13,15 @@ function easeOutScroll (from, to, callback) {
   function linear (t, b, c, d) {
     return c * t / d + b
   }
+  const isLarger = to >= from
+
   function step () {
     from = linear(+new Date() - sTime, from, change, dur)
-    if (from >= to) {
-      callback(to, true)
+    if ((isLarger && from >= to) || (!isLarger && to >= from)) {
+      callback(to)
       return
     }
-    callback(from, false)
+    callback(from)
     requestAnimationFrame(step)
   }
   step()
@@ -39,43 +42,79 @@ class ScrollView extends Nerv.Component {
   componentDidMount () {
     setTimeout(() => {
       const props = this.props
-      if (props['scroll-y'] && 'scroll-top' in props) {
-        if ('scroll-with-animation' in props) {
-          easeOutScroll(0, props['scroll-top'], pos => {
+      if (props.scrollY && typeof props.scrollTop === 'number') {
+        if ('scrollWithAnimation' in props) {
+          easeOutScroll(0, props.scrollTop, pos => {
             this.container.scrollTop = pos
           })
         } else {
-          this.container.scrollTop = props['scroll-top']
+          this.container.scrollTop = props.scrollTop
         }
       }
-      if (props['scroll-x'] && 'scroll-left' in props) {
-        if ('scroll-with-animation' in props) {
-          easeOutScroll(0, props['scroll-left'], pos => {
+      if (props.scrollX && typeof props.scrollLeft === 'number') {
+        if ('scrollWithAnimation' in props) {
+          easeOutScroll(0, props.scrollLeft, pos => {
             this.container.scrollLeft = pos
           })
         } else {
-          this.container.scrollLeft = props['scroll-left']
+          this.container.scrollLeft = props.scrollLeft
         }
       }
     }, 10)
   }
+
+  componentWillReceiveProps (nextProps) {
+    const props = this.props
+    // Y 轴滚动
+    if (
+      nextProps.scrollY &&
+      typeof props.scrollTop === 'number' &&
+      nextProps.scrollTop !== props.scrollTop
+    ) {
+      if ('scrollWithAnimation' in nextProps) {
+        easeOutScroll(props.scrollTop, nextProps.scrollTop, pos => {
+          this.container.scrollTop = pos
+        })
+      } else {
+        this.container.scrollTop = nextProps.scrollTop
+      }
+    }
+    // X 轴滚动
+    if (
+      nextProps.scrollX &&
+      typeof props.scrollLeft === 'number' &&
+      nextProps.scrollLeft !== props.scrollLeft
+    ) {
+      if ('scrollWithAnimation' in nextProps) {
+        easeOutScroll(props.scrollLeft, nextProps.scrollLeft, pos => {
+          this.container.scrollLeft = pos
+        })
+      } else {
+        this.container.scrollLeft = nextProps.scrollLeft
+      }
+    }
+  }
+
   render () {
     const {
       className,
       onScroll,
-      bindscrolltoupper,
-      bindscrolltolower,
-      upperThreshold = 0,
-      lowerThreshold = 0
+      onScrollToUpper,
+      onScrollToLower,
+      scrollX,
+      scrollY
     } = this.props
+    let { upperThreshold = 0, lowerThreshold = 0 } = this.props
     const cls = classNames(
       'taro-scroll',
       {
-        [`taro-scroll-view__scroll-x`]: this.props['scroll-x'],
-        [`taro-scroll-view__scroll-y`]: this.props['scroll-y']
+        [`taro-scroll-view__scroll-x`]: scrollX,
+        [`taro-scroll-view__scroll-y`]: scrollY
       },
       className
     )
+    upperThreshold = parseInt(upperThreshold)
+    lowerThreshold = parseInt(upperThreshold)
     const uperAndLower = () => {
       const {
         offsetWidth,
@@ -86,20 +125,20 @@ class ScrollView extends Nerv.Component {
         scrollWidth
       } = this.container
       if (
-        bindscrolltolower &&
-        ((this.props['scroll-y'] &&
+        onScrollToLower &&
+        ((this.props.scrollY &&
           offsetHeight + scrollTop + lowerThreshold >= scrollHeight) ||
-          (this.props['scroll-x'] &&
+          (this.props.scrollX &&
             offsetWidth + scrollLeft + lowerThreshold >= scrollWidth))
       ) {
-        bindscrolltolower()
+        onScrollToLower()
       }
       if (
-        bindscrolltoupper &&
-        ((this.props['scroll-y'] && scrollTop <= upperThreshold) ||
-          (this.props['scroll-x'] && scrollLeft <= upperThreshold))
+        onScrollToUpper &&
+        ((this.props.scrollY && scrollTop <= upperThreshold) ||
+          (this.props.scrollX && scrollLeft <= upperThreshold))
       ) {
-        bindscrolltoupper()
+        onScrollToUpper()
       }
     }
     const uperAndLowerThrottle = throttle(uperAndLower, 200)

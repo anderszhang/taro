@@ -15,17 +15,50 @@ module.exports = {
     nervjs: 'commonjs2 nervjs',
     classnames: 'commonjs2 classnames',
     weui: 'commonjs2 weui',
-    'omit.js': 'commonjs2 omit.js'
+    'omit.js': 'commonjs2 omit.js',
+    '@tarojs/taro-h5': 'commonjs2 @tarojs/taro-h5'
   },
   module: {
     rules: [
       {
         test: /\.js$/,
-        loaders: ['babel-loader'/*, 'eslint-loader'*/]
+        use: [{
+          loader: 'babel-loader',
+          options: {
+            'presets': [
+              [
+                '@babel/env',
+                {
+                  'spec': true,
+                  'useBuiltIns': false
+                }
+              ]
+            ],
+            'plugins': [
+              [
+                '@babel/plugin-transform-react-jsx',
+                {
+                  'pragma': 'Nerv.createElement'
+                }
+              ],
+              ['@babel/plugin-proposal-class-properties'],
+              ['@babel/plugin-proposal-object-rest-spread']
+            ]
+          }
+        }]/*, 'eslint-loader' */
       },
       {
         test: /\.scss$/,
-        loaders: ['style-loader', 'css-loader', 'sass-loader']
+        loaders: [
+          {
+            loader: 'style-loader',
+            options: {
+              insertAt: 'top'
+            }
+          },
+          'css-loader',
+          'sass-loader'
+        ]
       },
       {
         test: /\.css$/,

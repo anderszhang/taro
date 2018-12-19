@@ -54,8 +54,16 @@ class Slider extends Nerv.Component {
 
     parseType(this.props)
 
+    this.sliderInsRef = ''
+
+    if (this.props.value) {
+      if (this.props.value > this.props.max) {
+        this.props.value = this.props.max
+      }
+    }
+
     this.state = {
-      value: this.props.value ? this.props.value : 0,
+      value: this.props.value,
       controlled: typeof this.props.value !== 'undefined',
       totalWidth: 0,
       touching: false,
@@ -68,6 +76,7 @@ class Slider extends Nerv.Component {
     this.handleTouchStart = this.handleTouchStart.bind(this)
     this.handleTouchMove = this.handleTouchMove.bind(this)
     this.handleTouchEnd = this.handleTouchEnd.bind(this)
+    this.updateValue = this.updateValue.bind(this)
   }
 
   componentDidMount () {
@@ -93,7 +102,9 @@ class Slider extends Nerv.Component {
     let percent = this.state.percent
     let { min, max, step } = this.props
     let steps = parseInt((max - min) / step)
-    let perPercent = parseInt(100 / steps)
+    let per = 100 / steps
+    if (per < 1) per = 1
+    let perPercent = parseInt(per)
 
     if (percent === 100) {
       value = max
@@ -109,7 +120,6 @@ class Slider extends Nerv.Component {
         }
       }
     }
-
     if (value !== this.state.value) {
       this.setState({ value })
       return true
@@ -119,7 +129,7 @@ class Slider extends Nerv.Component {
 
   handleTouchStart (e) {
     if (this.state.touching || this.props.disabled) return
-    let barDOM = Nerv.findDOMNode(this.refs.bar)
+    let barDOM = Nerv.findDOMNode(this.sliderInsRef)
     this.setState({
       touching: true,
       touchId: e.targetTouches[0].identifier,
@@ -130,7 +140,7 @@ class Slider extends Nerv.Component {
   }
 
   handleTouchMove (e) {
-    let { onChange, onChanging } = this.props
+    let { onChanging } = this.props
     if (!this.state.touching || this.props.disabled) return
     if (e.targetTouches[0].identifier !== this.state.touchId) return
 
@@ -156,10 +166,9 @@ class Slider extends Nerv.Component {
             enumerable: true,
             value: {
               detail: e.detail,
-              value: percent
+              value: this.state.value
             }
           })
-          if (onChange) onChange(e)
           if (onChanging) onChanging(e)
         }
       }
@@ -170,11 +179,22 @@ class Slider extends Nerv.Component {
       return
     }
 
+    let { onChange } = this.props
+
     this.setState({
       touching: false,
       ogX: 0,
       touchId: false,
       ogPercent: 0
+    }, () => {
+      Object.defineProperty(e, 'detail', {
+        enumerable: true,
+        value: {
+          detail: e.detail,
+          value: this.state.value
+        }
+      })
+      if (onChange) onChange(e)
     })
   }
 
@@ -193,8 +213,9 @@ class Slider extends Nerv.Component {
       backgroundColor: backgroundColor
     }
 
+    const percent = this.state.percent > 100 ? 100 : this.state.percent
     let trackStyles = {
-      width: `${this.state.percent}%`,
+      width: `${percent}%`,
       backgroundColor: activeColor
     }
 
@@ -206,7 +227,7 @@ class Slider extends Nerv.Component {
     }
 
     let handlerStyles = {
-      left: `${this.state.percent}%`,
+      left: `${percent}%`,
       width: `${blockSize}px`,
       height: `${blockSize}px`,
       backgroundColor: blockColor,
@@ -217,7 +238,7 @@ class Slider extends Nerv.Component {
     return (
       <div className={cls}>
         <div className='weui-slider'>
-          <div className='weui-slider__inner' style={innerStyles} ref='bar'>
+          <div className='weui-slider__inner' style={innerStyles} ref={c => (this.sliderInsRef = c)}>
             <div style={trackStyles} className='weui-slider__track' />
             <div
               style={handlerStyles}

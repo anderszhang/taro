@@ -2,20 +2,23 @@ import { Vibration } from 'react-native'
 
 function vibrate (DURATION, API) {
   const res = { errMsg: `${API}:ok` }
-  try {
-    Vibration.vibrate(DURATION)
-    return Promise.resolve(res)
-  } catch (err) {
-    res.errMsg = err.message
-    return Promise.reject(res)
-  }
+  return new Promise((resolve, reject) => {
+    try {
+      Vibration.vibrate(DURATION)
+      resolve(res)
+    } catch (err) {
+      console.log(err)
+      res.errMsg = err.message
+      reject(res)
+    }
+  })
 }
 
-export function vibrateShort (DURATION, API) {
+export function vibrateShort () {
   return vibrate(15, 'vibrateShort')
 }
 
-export function vibrateLong (DURATION, API) {
+export function vibrateLong () {
   return vibrate(400, 'vibrateLong')
 }
 

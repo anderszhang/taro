@@ -1,23 +1,36 @@
 import Nerv from 'nervjs'
 import omit from 'omit.js'
-import classNames from 'classnames'
 class Textarea extends Nerv.Component {
   constructor () {
     super(...arguments)
   }
 
+  onChange (e) {
+    const { onChange, onInput } = this.props
+    Object.defineProperty(e, 'detail', {
+      enumerable: true,
+      value: {
+        value: e.target.value
+      }
+    })
+    if (onChange) {
+      onChange && onChange(e)
+    } else {
+      onInput && onInput(e)
+    }
+  }
+
   render () {
     const {
-      className,
-      placeholder,
+      className = '',
+      placeholder = '',
       disabled,
-      maxlength = 140,
+      maxLength = 140,
       onChange,
       onFocus,
       onBlur,
-      autofocus
+      autoFocus = false
     } = this.props
-    const cls = classNames('weui-textarea', className)
     return (
       <textarea
         {...omit(this.props, [
@@ -30,11 +43,11 @@ class Textarea extends Nerv.Component {
           'onBlur',
           'autofocus'
         ])}
-        className={cls}
+        className={className}
         placeholder={placeholder}
         disabled={disabled}
-        maxlength={maxlength}
-        autofocus={autofocus}
+        maxlength={maxLength}
+        autofocus={autoFocus}
         onChange={onChange}
         onFocus={onFocus}
         onBlur={onBlur}
